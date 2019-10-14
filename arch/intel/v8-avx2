@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+#------------------------------------------------------------------------------#
+# Get the path to the project from which this script was called
+#------------------------------------------------------------------------------#
+
+src_dir="${0%/*}/../.."
+
+#------------------------------------------------------------------------------#
+# Call CMake command
+#------------------------------------------------------------------------------#
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 cmake \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_INTEGRATED_TESTS=OFF \
+  -DENABLE_UNIT_TESTS=OFF \
+  -DCMAKE_C_COMPILER=mpicc \
+  -DCMAKE_CXX_COMPILER=mpicxx \
+  -DCMAKE_C_FLAGS="-g -O3 -rdynamic -inline-forceinline  \
+  -qoverride-limits -no-ansi-alias -xHost" \
+  -DCMAKE_CXX_FLAGS="-g -O3 -rdynamic -inline-forceinline \
+  -qoverride-limits -no-ansi-alias -xHost" \
+  -DUSE_V4_AVX2=ON \
+  -DUSE_V8_AVX2=ON \
+  $src_dir
