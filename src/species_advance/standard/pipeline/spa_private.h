@@ -42,6 +42,9 @@ typedef struct advance_p_pipeline_args
   int                                  ny;       // y-mesh resolution
   int                                  nz;       // z-mesh resolution
  
+  int n_pipeline;
+  int stride;
+
   PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 5*sizeof(int) )
 
 } advance_p_pipeline_args_t;
@@ -53,10 +56,25 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
                            int pipeline_rank,
                            int n_pipeline );
 
-void
-advance_p_pipeline_v4( advance_p_pipeline_args_t * args,
-                       int pipeline_rank,
-                       int n_pipeline );
+void cuda_advance_p_pipeline_scalar(int itmp,
+                                    int nn,
+                                    int nm,
+                                    int max_nm,
+                                    float cdt_dx,
+                                    float cdt_dy,
+                                    float cdt_dz,
+                                    float qdt_2mc,
+                                    float qsp,
+                                    particle_t *p,
+                                    interpolator_t *f0,
+                                    accumulator_t *a0,
+                                    particle_t *p0,
+                                    grid_t *g,
+                                    particle_mover_t *local_pm_arr);
+
+void advance_p_pipeline_v4(advance_p_pipeline_args_t *args,
+                           int pipeline_rank,
+                           int n_pipeline);
 
 void
 advance_p_pipeline_v8( advance_p_pipeline_args_t * args,

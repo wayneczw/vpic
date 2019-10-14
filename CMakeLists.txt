@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.1)
 # VPIC project configuration
 #~----------------------------------------------------------------------------~#
 
-project(vpic)
+project(vpic LANGUAGES C CXX CUDA)
 
 #------------------------------------------------------------------------------#
 # If a C++11 compiler is available, then set the appropriate flags
@@ -17,6 +17,13 @@ project(vpic)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+#------------------------------------------------------------------------------#
+# Set NVCCC flags
+#------------------------------------------------------------------------------#
+
+set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD_REQUIRED True)
 
 #------------------------------------------------------------------------------#
 # Set C flags
@@ -335,7 +342,7 @@ file(COPY ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vpic
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VPIC_CXX_FLAGS}")
 
-file(GLOB_RECURSE VPIC_SRC src/*.c src/*.cc)
+file(GLOB_RECURSE VPIC_SRC src/*.c src/*.cc src/*.cu)
 file(GLOB_RECURSE VPIC_NOT_SRC
   src/util/v4/test/v4.cc
   src/util/v8/test/v8.cc
@@ -360,7 +367,7 @@ macro(build_a_vpic name deck)
   if(NOT EXISTS ${deck})
     message(FATAL_ERROR "Could not find deck '${deck}'")
   endif()
-  add_executable(${name} ${CMAKE_SOURCE_DIR}/deck/main.cc ${CMAKE_SOURCE_DIR}/deck/wrapper.cc ${VPIC_SRC})
+  CUDA_ADD_EXECUTABLE(${name} ${CMAKE_SOURCE_DIR}/deck/main.cc ${CMAKE_SOURCE_DIR}/deck/wrapper.cc ${VPIC_SRC})
   target_link_libraries(${name} vpic)
   target_compile_definitions(${name} PRIVATE INPUT_DECK=${deck})
 endmacro(build_a_vpic)

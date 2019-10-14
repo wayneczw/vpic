@@ -3,12 +3,14 @@
 /* FIXME: STYLE */
 #define IN_v16_h
 /* FIXME: SHOULDN'T THIS INCLUDE UTIL_BASE.H? */
+#ifndef __NVCC__
 #ifdef __cplusplus
 # if defined USE_V16_PORTABLE
 #   include "v16_portable.h"
 # elif defined USE_V16_AVX512
 #   include "v16_avx512.h"
 # endif
+#endif
 #endif
 #undef IN_v16_h
 #endif // _v16_h_

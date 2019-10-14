@@ -3,6 +3,7 @@
 /* FIXME: STYLE */
 #define IN_v4_h
 /* FIXME: SHOULDN'T THIS INCLUDE UTIL_BASE.H? */
+#ifndef __NVCC__
 #ifdef __cplusplus
 # if defined USE_V4_ALTIVEC
 #   include "v4_altivec.h"
@@ -15,6 +16,7 @@
 # elif defined USE_V4_AVX2
 #   include "v4_avx2.h"
 # endif
+#endif
 #endif
 #undef IN_v4_h
 #endif // _v4_h_

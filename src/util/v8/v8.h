@@ -2,6 +2,7 @@
 #define _v8_h_
 // FIXME: STYLE
 #define IN_v8_h
+#ifndef __NVCC__
 // FIXME: SHOULDN'T THIS INCLUDE UTIL_BASE.H?
 #ifdef __cplusplus
 # if defined USE_V8_PORTABLE
@@ -11,6 +12,7 @@
 # elif defined USE_V8_AVX
 #   include "v8_avx.h"
 # endif
+#endif
 #endif
 #undef IN_v8_h
 #endif // _v8_h_

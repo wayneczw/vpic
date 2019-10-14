@@ -135,21 +135,26 @@ accumulate_rhob( field_t * RESTRICT ALIGNED(128) f,
                  const grid_t * RESTRICT g,
                  const float qsp );
 
-// In hydro_p.c
+// In hydro_p.cu
+void cuda_accumulate_hydro_p(hydro_t *h,
+                             particle_t *p,
+                             interpolator_t *f,
+                             int np, float qdt_2mc, float qdt_4mc2,
+                             float r8V, float qsp, float mspc,
+                             int stride_10, int stride_21, int stride_43);
 
+// In hydro_p.c
 void
 accumulate_hydro_p( hydro_array_t * RESTRICT ha,
                     const species_t * RESTRICT sp,
                     const interpolator_array_t * RESTRICT ia );
 
 // In move_p.cxx
-
-int
-move_p( particle_t       * ALIGNED(128) p0,    // Particle array
-        particle_mover_t * ALIGNED(16)  m,     // Particle mover to apply
-        accumulator_t    * ALIGNED(128) a0,    // Accumulator to use
-        const grid_t     *              g,     // Grid parameters
-        const float                     qsp ); // Species particle charge
+int move_p(particle_t *ALIGNED(128) p0,     // Particle array
+            particle_mover_t *ALIGNED(16) m, // Particle mover to apply
+            accumulator_t *ALIGNED(128) a0,  // Accumulator to use
+            const grid_t *g,                 // Grid parameters
+            const float qsp);                // Species particle charge
 
 END_C_DECLS
 
