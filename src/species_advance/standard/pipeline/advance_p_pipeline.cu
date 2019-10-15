@@ -26,35 +26,15 @@
 // make use of explicit calls to vector intrinsic functions.
 //----------------------------------------------------------------------------//
 
-// std::pair<int, int> 
-// do_moves( const particle_mover_t *from,
-//           particle_mover_t *to,
-//           const int max_nm,
-//           const int n) {  
-
-//     int nm = 0;
-//     int failed_nm = 0;
-//     for (int i = 0; i < n; ++i) {
-//         if (from[i].i == -1)
-//             continue;
-        
-//         if (nm < max_nm) {
-//             to[nm++] = from[i];
-//         } else {
-//             ++failed_nm;
-//         }
-//     }
-
-//     return std::pair<int, int>{nm, failed_nm};
-// }
-
 std::pair<int, int> 
-do_moves(const std::vector<particle_mover_t>& from,
-         particle_mover_t *to, const int max_nm) {  
+do_moves( const particle_mover_t *from,
+          particle_mover_t *to,
+          const int max_nm,
+          const int n) {  
 
     int nm = 0;
     int failed_nm = 0;
-    for (int i = 0; i < from.size(); ++i) {
+    for (int i = 0; i < n; ++i) {
         if (from[i].i == -1)
             continue;
         
@@ -211,8 +191,7 @@ int move_p_( particle_t      * ALIGNED(128) p0,
 }
 
 __global__
-void cuda_advance_p_pipeline_scalar(int itmp,
-                                    int nn,
+void cuda_advance_p_pipeline_scalar(int nn,
                                     float cdt_dx,
                                     float cdt_dy,
                                     float cdt_dz,
@@ -241,12 +220,13 @@ void cuda_advance_p_pipeline_scalar(int itmp,
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = gridDim.x * blockDim.x;
 
-  for( int n = idx; n < nn; n += stride )
+  p += idx;
+  for( int n = idx; n < nn; n += stride, p += stride )
   {
-    dx   = p[n].dx;                             // Load position
-    dy   = p[n].dy;
-    dz   = p[n].dz;
-    ii   = p[n].i;
+    dx   = p->dx;                             // Load position
+    dy   = p->dy;
+    dz   = p->dz;
+    ii   = p->i;
 
     f    = f0 + ii;                           // Interpolate E
 
@@ -263,10 +243,10 @@ void cuda_advance_p_pipeline_scalar(int itmp,
     cby  = f->cby + dy*f->dcbydy;
     cbz  = f->cbz + dz*f->dcbzdz;
 
-    ux   = p[n].ux;                             // Load momentum
-    uy   = p[n].uy;
-    uz   = p[n].uz;
-    q    = p[n].w;
+    ux   = p->ux;                             // Load momentum
+    uy   = p->uy;
+    uz   = p->uz;
+    q    = p->w;
 
     ux  += hax;                               // Half advance E
     uy  += hay;
@@ -293,9 +273,9 @@ void cuda_advance_p_pipeline_scalar(int itmp,
     uy  += hay;
     uz  += haz;
 
-    p[n].ux = ux;                               // Store momentum
-    p[n].uy = uy;
-    p[n].uz = uz;
+    p->ux = ux;                               // Store momentum
+    p->uy = uy;
+    p->uz = uz;
 
     v0   = one / sqrtf( one + ( ux*ux+ ( uy*uy + uz*uz ) ) );
                                               // Get norm displacement
@@ -326,9 +306,9 @@ void cuda_advance_p_pipeline_scalar(int itmp,
 
       q *= qsp;
 
-      p[n].dx = v3;                             // Store new position
-      p[n].dy = v4;
-      p[n].dz = v5;
+      p->dx = v3;                             // Store new position
+      p->dy = v4;
+      p->dz = v5;
 
       dx = v0;                                // Streak midpoint
       dy = v1;
@@ -371,7 +351,7 @@ void cuda_advance_p_pipeline_scalar(int itmp,
       local_pm->dispy = uy;
       local_pm->dispz = uz;
 
-      local_pm->i     = p + n - p0;
+      local_pm->i     = p - p0;
 
       if ( move_p_( p0, local_pm, a0, g_neighbor, g_rangel, g_rangeh, qsp ) ) // Unlikely
       {
@@ -388,11 +368,21 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
                            int pipeline_rank,
                            int n_pipeline )
 {
-  particle_t           * ALIGNED(128) p0          = args->p0;
-  accumulator_t        * ALIGNED(128) a0          = args->a0;
-  const interpolator_t * ALIGNED(128) f0          = args->f0;
-  const grid_t         *              g           = args->g;
-  int64_t              *              g_neighbor  = g->neighbor;
+  // allocate cuda memory
+  int deviceId;
+  cudaGetDevice(&deviceId);
+  int num_sm;
+  cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, deviceId);
+  int num_blk_per_sm = 32;
+  int num_thread_per_blk = 64;
+  cudaSetDeviceFlags(cudaDeviceMapHost);
+
+  particle_mover_t     *              local_pm_arr;
+  particle_mover_t                    init{0, 0, 0, -1};
+  particle_t           * ALIGNED(128) p0;
+  accumulator_t        * ALIGNED(128) a0;
+  interpolator_t       * ALIGNED(128) f0;
+  int64_t              *              g_neighbor;
 
   particle_t           * ALIGNED(32)  p;
   particle_mover_t     * ALIGNED(16)  pm;
@@ -404,11 +394,35 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
   const float qsp            = args->qsp;
 
   int itmp, n, max_nm;
+  // Determine which quads of particles quads this pipeline processes.
+
+  DISTRIBUTE( args->np, 16, pipeline_rank, n_pipeline, itmp, n );
+
+  cudaMallocHost((void **) &local_pm_arr, sizeof(particle_mover_t) * n);
+  // particle_t        * ALIGNED(32)   d_p;
+  // accumulator_t     * ALIGNED(128)  d_a0;
+  // particle_mover_t  *               d_local_pm_arr;
+  // interpolator_t    * ALIGNED(128)  d_f0;
+  // particle_t        * ALIGNED(128)  d_p0;
+  // int64_t           *               d_g_neighbor;
 
   // Determine which quads of particles quads this pipeline processes.
 
   DISTRIBUTE( args->np, 16, pipeline_rank, n_pipeline, itmp, n );
   p = args->p0 + itmp;
+  a0 = args->a0;
+  std::fill_n(local_pm_arr, n, init);
+  f0 = args->f0;
+  p0 = args->p0;
+  g_neighbor = args->g->neighbor;
+
+  cudaHostRegister(p, sizeof(particle_t) * n, cudaHostRegisterDefault);
+  cudaHostRegister(a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaHostRegisterDefault);
+  cudaHostRegister(f0, sizeof(interpolator_t) * args->g->nv, cudaHostRegisterDefault);
+	cudaHostRegister(p0, sizeof(particle_t) * args->np, cudaHostRegisterDefault);
+  cudaHostRegister(g_neighbor, sizeof(int64_t) * 6 * args->g->nv, cudaHostRegisterDefault);
+
+  // cudaHostRegister(a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaHostRegisterMapped);
 
   // Determine which movers are reserved for this pipeline.
   // Movers (16 bytes) should be reserved for pipelines in at least
@@ -431,83 +445,73 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
   // Determine which accumulator array to use
   // The host gets the first accumulator array.
 
-  if ( pipeline_rank != n_pipeline )
+  if ( pipeline_rank != n_pipeline ) {
     a0 += ( 1 + pipeline_rank ) *
           POW2_CEIL( (args->nx+2)*(args->ny+2)*(args->nz+2), 2 );
+  }
 
-  particle_mover_t init{0, 0, 0, -1}; 
-  auto local_pm_arr = std::vector<particle_mover_t>(n, init);
+  // cudaHostGetDevicePointer((void **) &d_p, (void *) p, 0);
+	// cudaHostGetDevicePointer((void **) &d_a0, (void *) a0, 0);
+	// cudaHostGetDevicePointer((void **) &d_local_pm_arr, (void *) local_pm_arr, 0);
+  // cudaHostGetDevicePointer((void **) &d_f0, (void *) f0, 0);
+  // cudaHostGetDevicePointer((void **) &d_p0, (void *) p0, 0);
+  // cudaHostGetDevicePointer((void **) &d_g_neighbor, (void *) g_neighbor, 0);
 
-  // allocate cuda memory
-  int deviceId;
-  cudaGetDevice(&deviceId);
-  int num_sm;
-  cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, deviceId);
-  int num_blk_per_sm = 32;
-  int num_thread_per_blk = 64;
+  // cudaMalloc((void **)&d_p, sizeof(particle_t) * n);
+  // cudaMalloc((void **)&d_a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride);
+  // cudaMalloc((void **)&d_local_pm_arr, sizeof(particle_mover_t) * n);
+  // cudaMalloc((void **)&d_f0, sizeof(interpolator_t) * args->g->nv);
+  // cudaMalloc((void **)&d_p0, sizeof(particle_t) * args->np);
+  // cudaMalloc((void **)&d_g_neighbor, sizeof(int64_t) * 6 * args->g->nv);
 
-  particle_t        * ALIGNED(32)  d_p;
-  accumulator_t     * ALIGNED(128) d_a0;
-  particle_mover_t  * d_local_pm_arr;
-  interpolator_t    * ALIGNED(128) d_f0;
-  particle_t        * ALIGNED(128) d_p0;
-  int64_t           * d_g_neighbor;
-
-  // particle_mover_t  * local_pm_arr;
-  // cudaMallocManaged(&p, sizeof(particle_t) * n);
-  // cudaMallocManaged(&a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride);
-  // cudaMallocManaged(&local_pm_arr, sizeof(particle_mover_t) * n);
-  // particle_mover_t init{0, 0, 0, -1};
-  // std::fill_n(local_pm_arr, n, init);
-  // cudaMemPrefetchAsync(p, sizeof(particle_t) * n, deviceId);
-  // cudaMemPrefetchAsync(a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, deviceId);
-  // cudaMemPrefetchAsync(local_pm_arr, sizeof(particle_mover_t) * n, deviceId);
-
-  cudaMalloc((void **)&d_p, sizeof(particle_t) * n);
-  cudaMalloc((void **)&d_a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride);
-  cudaMalloc((void **)&d_local_pm_arr, sizeof(particle_mover_t) * n);
-  cudaMalloc((void **)&d_f0, sizeof(interpolator_t) * args->g->nv);
-  cudaMalloc((void **)&d_p0, sizeof(particle_t) * args->np);
-  cudaMalloc((void **)&d_g_neighbor, sizeof(int64_t) * 6 * g->nv);
-
-  cudaMemcpy(d_p, p, sizeof(particle_t) * n, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_a0, a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_local_pm_arr, local_pm_arr.data(), sizeof(particle_mover_t) * n, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_f0, f0, sizeof(interpolator_t) * args->g->nv, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_p0, p0, sizeof(particle_t) * args->np, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_g_neighbor, g_neighbor, sizeof(int64_t) * 6 * g->nv, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_p, p, sizeof(particle_t) * n, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_a0, a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_local_pm_arr, local_pm_arr, sizeof(particle_mover_t) * n, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_f0, f0, sizeof(interpolator_t) * args->g->nv, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_p0, p0, sizeof(particle_t) * args->np, cudaMemcpyHostToDevice);
+  // cudaMemcpy(d_g_neighbor, g_neighbor, sizeof(int64_t) * 6 * args->g->nv, cudaMemcpyHostToDevice);
  
-  cuda_advance_p_pipeline_scalar<<<num_sm*num_blk_per_sm, num_thread_per_blk>>>(itmp,
-                                                                                n,
+  cuda_advance_p_pipeline_scalar<<<num_sm*num_blk_per_sm, num_thread_per_blk>>>(n,
                                                                                 cdt_dx,
                                                                                 cdt_dy,
                                                                                 cdt_dz,
                                                                                 qdt_2mc,
                                                                                 qsp,
-                                                                                g->rangel,
-                                                                                g->rangeh,
-                                                                                d_p,
-                                                                                d_a0,
-                                                                                d_local_pm_arr,
-                                                                                d_f0,
-                                                                                d_p0,
-                                                                                d_g_neighbor);
+                                                                                args->g->rangel,
+                                                                                args->g->rangeh,
+                                                                                p,
+                                                                                a0,
+                                                                                local_pm_arr,
+                                                                                f0,
+                                                                                p0,
+                                                                                g_neighbor);
   cudaDeviceSynchronize();
 
-  cudaMemcpy(p, d_p, sizeof(particle_t) * n, cudaMemcpyDeviceToHost);
-  cudaMemcpy(a0, d_a0, (size_t)(args->n_pipeline + 1) * (size_t)args->stride, cudaMemcpyDeviceToHost);  
-  cudaMemcpy(local_pm_arr.data(), d_local_pm_arr, sizeof(particle_mover_t) * n, cudaMemcpyDeviceToHost);
+  // cudaMemcpy(p, d_p, sizeof(particle_t) * n, cudaMemcpyDeviceToHost);
+  // cudaMemcpy(a0, d_a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaMemcpyDeviceToHost);  
+  // cudaMemcpy(local_pm_arr, d_local_pm_arr, sizeof(particle_mover_t) * n, cudaMemcpyDeviceToHost);
 
   // perform logic to get updated pm, nm and itmp from local_pm_arr
-  std::pair<int, int> result = do_moves(local_pm_arr, pm, max_nm);
-
-  cudaFree(d_p); cudaFree(d_a0); cudaFree(d_local_pm_arr);
-  cudaFree(d_f0); cudaFree(d_p0); cudaFree(d_g_neighbor); 
+  std::pair<int, int> result = do_moves(local_pm_arr, pm, max_nm, n);
 
   args->seg[pipeline_rank].pm        = pm;
   args->seg[pipeline_rank].max_nm    = max_nm;
   args->seg[pipeline_rank].nm        = std::get<0>(result);
   args->seg[pipeline_rank].n_ignored = std::get<1>(result);
+
+  cudaHostUnregister(p);
+  cudaHostUnregister(a0);
+  cudaFreeHost(local_pm_arr);
+  cudaHostUnregister(f0);
+	cudaHostUnregister(p0);
+  cudaHostUnregister(g_neighbor);
+
+  // cudaFree(d_p);
+  // cudaFree(d_a0);
+  // cudaFree(d_local_pm_arr);
+  // cudaFree(d_f0);
+  // cudaFree(d_p0);
+  // cudaFree(d_g_neighbor);
 }
 
 //----------------------------------------------------------------------------//

@@ -26,7 +26,7 @@ typedef struct advance_p_pipeline_args
   MEM_PTR( particle_t,           128 ) p0;       // Particle array
   MEM_PTR( particle_mover_t,     128 ) pm;       // Particle mover array
   MEM_PTR( accumulator_t,        128 ) a0;       // Accumulator arrays
-  MEM_PTR( const interpolator_t, 128 ) f0;       // Interpolator array
+  MEM_PTR( interpolator_t,       128 ) f0;       // Interpolator array
   MEM_PTR( particle_mover_seg_t, 128 ) seg;      // Dest for return values
   MEM_PTR( const grid_t,         1   ) g;        // Local domain grid params
 
@@ -41,11 +41,11 @@ typedef struct advance_p_pipeline_args
   int                                  nx;       // x-mesh resolution
   int                                  ny;       // y-mesh resolution
   int                                  nz;       // z-mesh resolution
- 
+
   int n_pipeline;
   int stride;
 
-  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 5*sizeof(int) )
+  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 7*sizeof(int) )
 
 } advance_p_pipeline_args_t;
 
