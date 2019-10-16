@@ -18,7 +18,6 @@
 extern "C" {
   #include "../species_advance.h"
 }
-
 // accumulate_hydro_p adds the hydrodynamic fields associated with the
 // supplied particle_list to the hydro array.  Trilinear interpolation
 // is used.  hydro is known at the nodes at the same time as particle
@@ -157,7 +156,8 @@ void cuda_accumulate_hydro_p(hydro_t *h,
 void
 accumulate_hydro_p( hydro_array_t              * RESTRICT ha,
                     const species_t            * RESTRICT sp,
-                    const interpolator_array_t * RESTRICT ia ) {
+                    const interpolator_array_t * RESTRICT ia,
+                    int w_rank ) {
   /**/  hydro_t        * RESTRICT ALIGNED(128) h;
   const particle_t     * RESTRICT ALIGNED(128) p;
   const interpolator_t * RESTRICT ALIGNED(128) f;
@@ -187,8 +187,8 @@ accumulate_hydro_p( hydro_array_t              * RESTRICT ha,
               VOXEL(1,1,0, sp->g->nx,sp->g->ny,sp->g->nz);
 
   // allocate cuda memory
-  int deviceId;
-  cudaGetDevice(&deviceId);
+  int deviceId = w_rank;
+  cudaSetDevice(deviceId);
   int num_sm;
   cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, deviceId);
   int num_blk_per_sm = 32;

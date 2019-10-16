@@ -24,12 +24,12 @@
 
 #if defined(V16_ACCELERATION) && defined(HAS_V16_PIPELINE)
 
-# define EXEC_PIPELINES(name, args, str)                                   \
-  _Pragma( TOSTRING( omp parallel num_threads(N_PIPELINE) shared(args) ) ) \
-  {                                                                        \
+#define EXEC_PIPELINES(name, args, str)                                \
+  _Pragma(TOSTRING(omp parallel num_threads(N_PIPELINE) shared(args))) \
+  {                                                                    \
     _Pragma( TOSTRING( omp for ) )                                         \
-    for( int id = 0; id < N_PIPELINE; id++ )                               \
-    {                                                                      \
+    for( int id = 0; id < N_PIPELINE; id++ )                           \
+    {                                                                  \
       name##_pipeline_v16( args+id*sizeof(*args)*str, id, N_PIPELINE );    \
     }                                                                      \
   }                                                                        \
@@ -43,12 +43,12 @@
 
 #elif defined(V8_ACCELERATION) && defined(HAS_V8_PIPELINE)
 
-# define EXEC_PIPELINES(name, args, str)                                   \
-  _Pragma( TOSTRING( omp parallel num_threads(N_PIPELINE) shared(args) ) ) \
-  {                                                                        \
+#define EXEC_PIPELINES(name, args, str)                                \
+  _Pragma(TOSTRING(omp parallel num_threads(N_PIPELINE) shared(args))) \
+  {                                                                    \
     _Pragma( TOSTRING( omp for ) )                                         \
-    for( int id = 0; id < N_PIPELINE; id++ )                               \
-    {                                                                      \
+    for( int id = 0; id < N_PIPELINE; id++ )                           \
+    {                                                                  \
       name##_pipeline_v8( args+id*sizeof(*args)*str, id, N_PIPELINE );     \
     }                                                                      \
   }                                                                        \
@@ -62,12 +62,12 @@
 
 #elif defined(V4_ACCELERATION) && defined(HAS_V4_PIPELINE)
 
-# define EXEC_PIPELINES(name, args, str)                                   \
-  _Pragma( TOSTRING( omp parallel num_threads(N_PIPELINE) shared(args) ) ) \
-  {                                                                        \
+#define EXEC_PIPELINES(name, args, str)                                \
+  _Pragma(TOSTRING(omp parallel num_threads(N_PIPELINE) shared(args))) \
+  {                                                                    \
     _Pragma( TOSTRING( omp for ) )                                         \
-    for( int id = 0; id < N_PIPELINE; id++ )                               \
-    {                                                                      \
+    for( int id = 0; id < N_PIPELINE; id++ )                           \
+    {                                                                  \
       name##_pipeline_v4( args+id*sizeof(*args)*str, id, N_PIPELINE );     \
     }                                                                      \
   }                                                                        \
@@ -86,8 +86,8 @@
   {                                                                        \
     _Pragma( TOSTRING( omp for ) )                                         \
     for( int id = 0; id < N_PIPELINE; id++ )                               \
-    {                                                                      \
-      name##_pipeline_scalar( args+id*sizeof(*args)*str, id, N_PIPELINE ); \
+    {
+      name##_pipeline_scalar(args + id * sizeof(*args) * str, id, N_PIPELINE);
     }                                                                      \
   }                                                                        \
   name##_pipeline_scalar( args+str*N_PIPELINE, N_PIPELINE, N_PIPELINE );

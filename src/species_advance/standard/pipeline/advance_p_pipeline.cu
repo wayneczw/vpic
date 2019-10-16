@@ -361,21 +361,23 @@ void cuda_advance_p_pipeline_scalar(int nn,
   }
 }
 
-
-
 void
 advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
                            int pipeline_rank,
                            int n_pipeline )
 {
+  // static __thread cudaStream_t st = nullptr;
+  // if (!st)
+  //   cudaStreamCreate(&st);
+
   // allocate cuda memory
-  int deviceId;
-  cudaGetDevice(&deviceId);
+  int deviceId = args->w_rank;
+  cudaSetDevice(deviceId);
   int num_sm;
   cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, deviceId);
   int num_blk_per_sm = 32;
   int num_thread_per_blk = 64;
-  cudaSetDeviceFlags(cudaDeviceMapHost);
+  // cudaSetDeviceFlags(cudaDeviceMapHost);
 
   particle_mover_t     *              local_pm_arr;
   particle_mover_t                    init{0, 0, 0, -1};
@@ -399,6 +401,12 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
   DISTRIBUTE( args->np, 16, pipeline_rank, n_pipeline, itmp, n );
 
   cudaMallocHost((void **) &local_pm_arr, sizeof(particle_mover_t) * n);
+  // cudaMallocHost((void **) &p, sizeof(particle_t) * n);
+  // cudaMallocHost((void **) &a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride);
+  // cudaMallocHost((void **) &f0, sizeof(interpolator_t) * args->g->nv);
+	// cudaMallocHost((void **) &p0, sizeof(particle_t) * args->np);
+  // cudaMallocHost((void **) &g_neighbor, sizeof(int64_t) * 6 * args->g->nv);
+
   // particle_t        * ALIGNED(32)   d_p;
   // accumulator_t     * ALIGNED(128)  d_a0;
   // particle_mover_t  *               d_local_pm_arr;
@@ -422,7 +430,18 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 	cudaHostRegister(p0, sizeof(particle_t) * args->np, cudaHostRegisterDefault);
   cudaHostRegister(g_neighbor, sizeof(int64_t) * 6 * args->g->nv, cudaHostRegisterDefault);
 
-  // cudaHostRegister(a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, cudaHostRegisterMapped);
+  // cudaHostGetDevicePointer((void **) &d_p, (void *) p, 0);
+  // cudaHostGetDevicePointer((void **) &d_a0, (void *) a0, 0);
+  // cudaHostGetDevicePointer((void **) &d_local_pm_arr, (void *) local_pm_arr, 0);
+  // cudaHostGetDevicePointer((void **) &d_f0, (void *) f0, 0);
+  // cudaHostGetDevicePointer((void **) &d_p0, (void *) p0, 0);
+  // cudaHostGetDevicePointer((void **) &d_g_neighbor, (void *) g_neighbor, 0);
+  // cudaMemPrefetchAsync(d_p, sizeof(particle_t) * n, deviceId, st);
+  // cudaMemPrefetchAsync(d_a0, sizeof(accumulator_t) * (args->n_pipeline + 1) * args->stride, deviceId,st);
+  // cudaMemPrefetchAsync(d_local_pm_arr, sizeof(particle_mover_t) * n, deviceId, st);
+  // cudaMemPrefetchAsync(d_f0, sizeof(interpolator_t) * args->g->nv, deviceId, st);
+  // cudaMemPrefetchAsync(d_p0, sizeof(particle_t) * args->np, deviceId, st);
+  // cudaMemPrefetchAsync(d_g_neighbor, sizeof(int64_t) * 6 * args->g->nv, deviceId, st);
 
   // Determine which movers are reserved for this pipeline.
   // Movers (16 bytes) should be reserved for pipelines in at least
@@ -470,7 +489,7 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
   // cudaMemcpy(d_f0, f0, sizeof(interpolator_t) * args->g->nv, cudaMemcpyHostToDevice);
   // cudaMemcpy(d_p0, p0, sizeof(particle_t) * args->np, cudaMemcpyHostToDevice);
   // cudaMemcpy(d_g_neighbor, g_neighbor, sizeof(int64_t) * 6 * args->g->nv, cudaMemcpyHostToDevice);
- 
+
   cuda_advance_p_pipeline_scalar<<<num_sm*num_blk_per_sm, num_thread_per_blk>>>(n,
                                                                                 cdt_dx,
                                                                                 cdt_dy,
@@ -506,6 +525,13 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 	cudaHostUnregister(p0);
   cudaHostUnregister(g_neighbor);
 
+  // cudaFreeHost(p);
+  // cudaFreeHost(a0);
+  // cudaFreeHost(local_pm_arr);
+  // cudaFreeHost(f0);
+	// cudaFreeHost(p0);
+  // cudaFreeHost(g_neighbor);
+
   // cudaFree(d_p);
   // cudaFree(d_a0);
   // cudaFree(d_local_pm_arr);
@@ -522,7 +548,8 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
 void
 advance_p_pipeline( species_t * RESTRICT sp,
                     accumulator_array_t * RESTRICT aa,
-                    const interpolator_array_t * RESTRICT ia )
+                    const interpolator_array_t * RESTRICT ia,
+                    int w_rank )
 {
   DECLARE_ALIGNED_ARRAY( advance_p_pipeline_args_t, 128, args, 1 );
 
@@ -556,6 +583,7 @@ advance_p_pipeline( species_t * RESTRICT sp,
 
   args->n_pipeline = aa->n_pipeline;
   args->stride = aa->stride;
+  args->w_rank = w_rank;
   // Have the host processor do the last incomplete bundle if necessary.
   // Note: This is overlapped with the pipelined processing.  As such,
   // it uses an entire accumulator.  Reserving an entire accumulator

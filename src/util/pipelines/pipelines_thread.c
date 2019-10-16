@@ -36,7 +36,6 @@
 // TO DO:
 // (?) Signal blocking in pipelines
 // (?) Timeouts in thread_halt, thread_boot (spin wait)
-
 #include "pipelines.h"
 
 #if defined(VPIC_USE_PTHREADS)

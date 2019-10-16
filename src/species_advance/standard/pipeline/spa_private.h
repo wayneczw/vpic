@@ -44,8 +44,9 @@ typedef struct advance_p_pipeline_args
 
   int n_pipeline;
   int stride;
+  int w_rank;
 
-  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 7*sizeof(int) )
+  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 8*sizeof(int) )
 
 } advance_p_pipeline_args_t;
 
@@ -56,21 +57,21 @@ advance_p_pipeline_scalar( advance_p_pipeline_args_t * args,
                            int pipeline_rank,
                            int n_pipeline );
 
-void cuda_advance_p_pipeline_scalar(int itmp,
-                                    int nn,
-                                    int nm,
-                                    int max_nm,
-                                    float cdt_dx,
-                                    float cdt_dy,
-                                    float cdt_dz,
-                                    float qdt_2mc,
-                                    float qsp,
-                                    particle_t *p,
-                                    interpolator_t *f0,
-                                    accumulator_t *a0,
-                                    particle_t *p0,
-                                    grid_t *g,
-                                    particle_mover_t *local_pm_arr);
+// void
+// cuda_advance_p_pipeline_scalar(int nn,
+//                                     float cdt_dx,
+//                                     float cdt_dy,
+//                                     float cdt_dz,
+//                                     float qdt_2mc,
+//                                     float qsp,
+//                                     int64_t g_rangel,
+//                                     int64_t g_rangeh,
+//                                     particle_t *p,
+//                                     accumulator_t *a0,
+//                                     particle_mover_t *local_pm_arr,
+//                                     interpolator_t *f0,
+//                                     particle_t *p0,
+//                                     int64_t *g_neighbor);
 
 void advance_p_pipeline_v4(advance_p_pipeline_args_t *args,
                            int pipeline_rank,

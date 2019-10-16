@@ -58,7 +58,6 @@
 //----------------------------------------------------------------------------//
 
 #else
-
 # define EXEC_PIPELINES(name,args,str)                           \
   thread.dispatch( (pipeline_func_t)name##_pipeline_scalar,      \
                    args, sizeof(*args), str );                   \

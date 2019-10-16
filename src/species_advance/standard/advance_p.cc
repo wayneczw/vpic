@@ -11,9 +11,10 @@
 void
 advance_p( species_t * RESTRICT sp,
            accumulator_array_t * RESTRICT aa,
-           const interpolator_array_t * RESTRICT ia )
+           const interpolator_array_t * RESTRICT ia,
+           int w_rank )
 {
   // Once more options are available, this should be conditionally executed
   // based on user choice.
-  advance_p_pipeline( sp, aa, ia );
+  advance_p_pipeline( sp, aa, ia, w_rank );
 }

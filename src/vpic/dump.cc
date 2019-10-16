@@ -225,7 +225,7 @@ vpic_simulation::dump_hydro( const char *sp_name,
   if( !sp ) ERROR(( "Invalid species \"%s\"", sp_name ));
 
   clear_hydro_array( hydro_array );
-  accumulate_hydro_p( hydro_array, sp, interpolator_array );
+  accumulate_hydro_p( hydro_array, sp, interpolator_array, rank() );
   synchronize_hydro_array( hydro_array );
 
   if( !fbase ) ERROR(( "Invalid filename" ));
@@ -680,7 +680,7 @@ vpic_simulation::hydro_dump( const char * speciesname,
   if( !sp ) ERROR(( "Invalid species name: %s", speciesname ));
 
   clear_hydro_array( hydro_array );
-  accumulate_hydro_p( hydro_array, sp, interpolator_array );
+  accumulate_hydro_p( hydro_array, sp, interpolator_array, rank() );
   synchronize_hydro_array( hydro_array );
 
   // convenience
