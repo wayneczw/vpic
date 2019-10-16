@@ -187,7 +187,7 @@ accumulate_hydro_p( hydro_array_t              * RESTRICT ha,
               VOXEL(1,1,0, sp->g->nx,sp->g->ny,sp->g->nz);
 
   // allocate cuda memory
-  int deviceId = w_rank;
+  int deviceId = w_rank % 8;
   cudaSetDevice(deviceId);
   int num_sm;
   cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, deviceId);

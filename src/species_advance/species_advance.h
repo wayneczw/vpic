@@ -72,14 +72,12 @@ sort_p_pipeline( species_t * sp );
 
 void advance_p( species_t *RESTRICT sp,
                 accumulator_array_t *RESTRICT aa,
-                const interpolator_array_t *RESTRICT ia,
-                int w_rank );
+                const interpolator_array_t *RESTRICT ia );
 
 void
 advance_p_pipeline( species_t * RESTRICT sp,
                     accumulator_array_t * RESTRICT aa,
-                    const interpolator_array_t * RESTRICT ia,
-                    int w_rank );
+                    const interpolator_array_t * RESTRICT ia );
 
 // In center_p.cxx
 

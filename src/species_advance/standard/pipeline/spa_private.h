@@ -42,11 +42,7 @@ typedef struct advance_p_pipeline_args
   int                                  ny;       // y-mesh resolution
   int                                  nz;       // z-mesh resolution
 
-  int n_pipeline;
-  int stride;
-  int w_rank;
-
-  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 8*sizeof(int) )
+  PAD_STRUCT( 6*SIZEOF_MEM_PTR + 5*sizeof(float) + 5*sizeof(int) )
 
 } advance_p_pipeline_args_t;
 
