@@ -100,7 +100,7 @@ begin_initialization {
   global->bparticle_interval = 250;
   global->eparticle_interval = 250;
   global->iparticle_interval = 250;
-  global->restart_interval   = 0; // Do not dump
+  global->restart_interval   = 1000; // Do not dump
 
   // Setup custom beam injection parameters
   global->r_beam     = r_beam;

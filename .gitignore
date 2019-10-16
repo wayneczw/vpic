@@ -32,3 +32,5 @@
 *.app
 sync.sh
 results/
+.DS_Store
+.vscode/
