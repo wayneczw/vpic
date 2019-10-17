@@ -18,7 +18,6 @@ LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 cmake \
   -qoverride-limits -no-ansi-alias -xHost" \
   -DCMAKE_CXX_FLAGS="-g -O3 -rdynamic -inline-forceinline \
   -qoverride-limits -no-ansi-alias -xHost" \
+  -DUSE_V4_AVX2=ON \
+  -DUSE_V8_AVX2=ON \
   $src_dir
-  # -DUSE_V4_AVX2=ON \
-  # -DUSE_V8_AVX2=ON \
-  # $src_dir
