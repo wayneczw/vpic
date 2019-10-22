@@ -379,7 +379,7 @@ begin_initialization {
 
   sim_log("Setting up high-level simulation parameters.");
   num_step             = int(t_stop/(dt));
-  num_step             = 2000;
+  num_step             = 20000;
   sim_log("num_step: " << num_step); 
 
   status_interval      = 200; 
